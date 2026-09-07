@@ -9,7 +9,7 @@ Based on Andrej Karpathy's idea: https://gist.github.com/karpathy/442a6bf5559148
 ## What's included
 
 ```
-.claude/commands/wiki/   ← four Claude Code slash commands
+.claude/commands/wiki/   ← five Claude Code slash commands
 CLAUDE.md                ← wiki schema (page types, conventions, workflows)
 wiki/                    ← your wiki (LLM-maintained)
   index.md               ← master catalog
@@ -57,6 +57,7 @@ Then use this repo's `CLAUDE.md` and directory scaffold as your wiki root.
 | `/wiki:query <question>` | Answer a question by synthesizing across wiki pages |
 | `/wiki:new-note <title>` | Create a new atomic note with cross-references |
 | `/wiki:lint` | Health-check the wiki — orphans, missing links, contradictions |
+| `/wiki:build-kb <raw-directory> [area]` | Build or rebuild a dense knowledge base from a whole directory of sources at once |
 
 ## Workflows
 
@@ -85,6 +86,11 @@ Then use this repo's `CLAUDE.md` and directory scaffold as your wiki root.
 /wiki:lint
 ```
 
+### Build a knowledge base from a directory of sources
+```
+/wiki:build-kb raw/fitness fitness
+```
+
 ## How it works
 
 **CLAUDE.md** is the schema — it defines page types (source, concept, entity, note, query, project, investment), required sections, naming conventions, and the workflows Claude follows for each operation. Claude reads it at the start of every operation.
@@ -94,6 +100,10 @@ Then use this repo's `CLAUDE.md` and directory scaffold as your wiki root.
 **`wiki/`** is fully LLM-maintained. Claude creates pages, updates them when new sources add nuance or contradiction, and maintains cross-references across the graph. Every operation ends with a git commit.
 
 **The value compounds.** Each ingested source updates all relevant wiki pages. Each query synthesizes across everything. The wiki gets more useful the more you put into it.
+
+## Knowledge bases
+
+For an area with many sources on a cohesive topic (rule of thumb: more than 5, or one large corpus), the schema supports a denser **KB pattern**: a `wiki/<area>/kb/` directory with a routing `index.md` and one fact-list topic file per subtopic, tracking `CONSENSUS`/`CONFLICT`/`RESOLVED` markers across sources instead of prose. `/wiki:build-kb` sets one up (or rebuilds it) from a whole raw directory at once; `/wiki:ingest` routes new sources into it once it exists. See `CLAUDE.md` for the full format.
 
 ## Customising the schema
 

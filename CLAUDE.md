@@ -19,7 +19,7 @@ wiki/
 
 Two special files always exist at the wiki root level: `wiki/index.md` and `wiki/overview.md`. Everything else is in area subdirectories.
 
-**Projects with their own codebase** live inside `wiki/` as a regular area directory (e.g. `wiki/crupp-de/`). Their `index.md` is the wiki page. Build tooling lives in `cmd/` alongside it. Links from such an `index.md` to other wiki pages use normal relative paths (e.g. `../career/overview.md`).
+**Projects with their own codebase** live inside `wiki/` as a regular area directory (e.g. `wiki/my-project/`). Their `index.md` is the wiki page. Build tooling lives in `cmd/` alongside it. Links from such an `index.md` to other wiki pages use normal relative paths (e.g. `../career/overview.md`).
 
 `raw/clippings/` is the conventional home for web articles fetched by URL.
 
@@ -80,7 +80,7 @@ Required sections (as applicable):
 ### Incubator pages (`wiki/incubator/`)
 Active and in-progress projects. Each lives in its own subdirectory: `wiki/incubator/<name>/`. The main file is always `index.md`. Additional files (roadmap, notes, decisions, research, etc.) can be added alongside it as the project grows.
 
-Directory name: project slug, e.g. `wiki/incubator/upscaledb/`, `wiki/incubator/crupp-de/`
+Directory name: project slug, e.g. `wiki/incubator/upscaledb/`, `wiki/incubator/my-project/`
 
 `index.md` required sections:
 - **Idea summary** — one paragraph pitch
@@ -141,10 +141,20 @@ Required sections:
 _Last updated: YYYY-MM-DD. N pages total._
 
 ## <Area> (N)
-- [Title](<area>/filename.md) — one-line summary or description
+- [Title](<area>/filename.md) — summary; keywords: kw1, kw2, kw3
 ```
 
-One section per area subdirectory, in whatever order makes sense. Keep each entry to one line. Do not add prose between sections. Add new area sections as new areas are created.
+One section per area subdirectory, in whatever order makes sense. Each entry is **one line** with two parts separated by ` — `:
+1. **Summary** (1-2 sentences): what the page covers and why it matters. Be specific — name the entities, concepts, or decisions the page addresses.
+2. **Keywords** (3-6 terms after `keywords:`): the terms a query is likely to use to reach this page. Include synonyms and related terms, not just the title words.
+
+Example:
+```
+- [Bitcoin](investments/bitcoin.md) — long-term store-of-value thesis; tracks position size, DCA strategy, and halving cycle analysis; keywords: bitcoin, BTC, crypto, cryptocurrency, digital gold, inflation hedge
+- [Network Effects](concepts/network-effects.md) — explains how value scales with users; includes Metcalfe's law and examples from Uber, Airbnb; keywords: network effects, Metcalfe, marketplace, platform, virality, winner-take-all
+```
+
+Do not add prose between sections. Add new area sections as new areas are created.
 
 ## Cross-referencing rules
 
@@ -155,6 +165,8 @@ One section per area subdirectory, in whatever order makes sense. Keep each entr
 5. Update `overview.md` when something materially changes the big picture.
 
 ## Operations
+
+> **Note for LLM:** CLAUDE.md is already in your context — never re-read it at the start of an operation. Skip any step that says "read CLAUDE.md" or "read the schema".
 
 ### Ingest workflow
 When processing a new source (`/wiki:ingest`):
@@ -170,8 +182,8 @@ When processing a new source (`/wiki:ingest`):
 
 ### Query workflow
 When answering a question (`/wiki:query`):
-1. Read `wiki/index.md` to find relevant pages
-2. Read all relevant pages
+1. Use index.md summaries + frontmatter triage to select pages (see skill for details)
+2. Read only confirmed relevant pages (cap: 7)
 3. Synthesize an answer with citations (link to wiki pages, not raw sources)
 4. Ask whether to file the answer — if yes, create a page in `wiki/queries/`
 5. If filed, update `wiki/index.md`
@@ -192,6 +204,47 @@ When creating a note (`/wiki:new-note`):
 3. Update `wiki/index.md`
 4. **Commit:** `git add -A && git commit -m "note: <title>"`
 
+## Knowledge Base (KB) pattern
+
+Use the KB pattern when an area has or will have **many sources on a cohesive topic** (rule of thumb: >5 sources, or a single large corpus). The goal is a dense, LLM-optimized store that can be queried without loading raw sources.
+
+### Structure
+```
+wiki/<area>/kb/
+├── index.md       ← routing layer: one paragraph per topic, read first
+├── strength.md    ← one file per topic
+├── nutrition.md
+└── ...
+```
+
+The KB lives alongside normal area pages. `wiki/<area>/overview.md` links to `kb/index.md`.
+
+### Topic file format
+Use **fact-list format**, not prose. Sections contain specific claims, numeric targets, and conflict markers:
+
+```markdown
+## <Section>
+- CONSENSUS: <claim agreed across ≥2 sources>
+- <single-source claim, stated plainly>
+- CONFLICT [source-A vs source-B]: A claims X; B claims Y
+  RESOLVED: <synthesis> — rationale: <brief reason>
+```
+
+Rules:
+- No prose filler ("it is important to note that…")
+- No redundancy — if a claim is already captured, do not add it again
+- Numeric specificity over vagueness
+- `CONSENSUS` = ≥2 sources agree · `CONFLICT` = genuine disagreement · `RESOLVED` = synthesis call
+
+### kb/index.md format
+One section per topic file. Each section: 2-4 sentence routing paragraph + link. Dense enough to decide relevance without opening the topic file.
+
+### When ingest hits a KB area
+If `wiki/<area>/kb/index.md` exists, route new source content into the topic files (not into standalone pages). See the ingest workflow for details.
+
+### Build or rebuild a KB
+Use `/wiki:build-kb <raw-directory> [area]` to process a whole directory of sources at once.
+
 ## Conventions
 
 - Dates: always ISO 8601 (`YYYY-MM-DD`)
@@ -200,4 +253,4 @@ When creating a note (`/wiki:new-note`):
 - Update `updated:` frontmatter whenever you change a page
 - **Git commits:** after every major update (ingest, filed query, note, lint fixes), run `git add -A && git commit -m "<type>: <description>"`. Types: `ingest`, `query`, `note`, `lint`, `update`
 - When in doubt about where something belongs, put it in `wiki/notes/` and cross-reference aggressively
-- **`cmd/` convention:** when a project has an associated command (build, publish, deploy, generate, etc.), create a `cmd/` subdirectory inside the project directory. `cmd/Makefile` is required and must define at least two targets: `build` and `deploy`. The wiki page (`index.md`) stays at the project root, not inside `cmd/`. Example: `wiki/crupp-de/index.md` + `wiki/crupp-de/cmd/Makefile`.
+- **`cmd/` convention:** when a project has an associated command (build, publish, deploy, generate, etc.), create a `cmd/` subdirectory inside the project directory. `cmd/Makefile` is required and must define at least two targets: `build` and `deploy`. The wiki page (`index.md`) stays at the project root, not inside `cmd/`. Example: `wiki/my-project/index.md` + `wiki/my-project/cmd/Makefile`.
